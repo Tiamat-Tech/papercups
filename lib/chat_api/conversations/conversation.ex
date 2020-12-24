@@ -18,6 +18,7 @@ defmodule ChatApi.Conversations.Conversation do
     field(:priority, :string, default: "not_priority")
     field(:read, :boolean, default: false)
     field(:archived_at, :utc_datetime)
+    field(:first_replied_at, :utc_datetime)
 
     has_many(:messages, Message)
     belongs_to(:assignee, User, foreign_key: :assignee_id, references: :id, type: :integer)
@@ -40,7 +41,8 @@ defmodule ChatApi.Conversations.Conversation do
       :assignee_id,
       :account_id,
       :customer_id,
-      :archived_at
+      :archived_at,
+      :first_replied_at
     ])
     |> validate_required([:status, :account_id, :customer_id])
     |> foreign_key_constraint(:account_id)
