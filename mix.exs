@@ -46,6 +46,7 @@ defmodule ChatApi.MixProject do
       {:customerio, "~> 0.2"},
       {:ex_aws, "~> 2.1"},
       {:ex_aws_s3, "~> 2.0"},
+      {:ex_aws_lambda, "~> 2.0"},
       {:swoosh, "~> 1.0"},
       {:gen_smtp, "~> 0.13"},
       {:phoenix, "~> 1.5.5"},
@@ -59,6 +60,7 @@ defmodule ChatApi.MixProject do
       {:tesla, "~> 1.3"},
       {:hackney, "~> 1.17"},
       {:jason, "~> 1.0"},
+      {:joken, "~> 2.0"},
       {:plug_cowboy, "~> 2.0"},
       {:corsica, "~> 1.0"},
       {:pow, "~> 1.0.18"},
@@ -76,6 +78,9 @@ defmodule ChatApi.MixProject do
       {:scrivener_ecto, "~> 2.0"},
       {:floki, "~> 0.30.0"},
       {:paginator, "~> 1.0.3"},
+      {:phoenix_pubsub_redis, "~> 3.0.0"},
+      {:appsignal_phoenix, "~> 2.0.0"},
+      {:earmark, "~> 1.4.15"},
       {:mix_test_watch, "~> 1.0", only: :dev, runtime: false}
     ]
   end

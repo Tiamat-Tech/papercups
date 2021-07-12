@@ -5,6 +5,7 @@ defmodule ChatApiWeb.CustomerView do
     CompanyView,
     ConversationView,
     CustomerView,
+    IssueView,
     MessageView,
     NoteView,
     TagView,
@@ -15,7 +16,7 @@ defmodule ChatApiWeb.CustomerView do
   alias ChatApi.Customers.Customer
 
   @customer_csv_ordered_fields ~w(id name email created_at updated_at)a ++
-                                 ~w(first_seen last_seen phone external_id)a ++
+                                 ~w(first_seen last_seen_at phone external_id)a ++
                                  ~w(host pathname current_url browser)a ++
                                  ~w(os ip time_zone)a
 
@@ -70,7 +71,6 @@ defmodule ChatApiWeb.CustomerView do
       created_at: customer.inserted_at,
       updated_at: customer.updated_at,
       first_seen: customer.first_seen,
-      last_seen: customer.last_seen,
       last_seen_at: customer.last_seen_at,
       phone: customer.phone,
       external_id: customer.external_id,
@@ -87,6 +87,7 @@ defmodule ChatApiWeb.CustomerView do
       title: customer.name || customer.email || "Anonymous User"
     }
     |> maybe_render_tags(customer)
+    |> maybe_render_issues(customer)
     |> maybe_render_notes(customer)
     |> maybe_render_conversations(customer)
     |> maybe_render_messages(customer)
@@ -97,6 +98,11 @@ defmodule ChatApiWeb.CustomerView do
     do: Map.merge(json, %{tags: render_many(tags, TagView, "tag.json")})
 
   defp maybe_render_tags(json, _), do: json
+
+  defp maybe_render_issues(json, %Customer{issues: issues}) when is_list(issues),
+    do: Map.merge(json, %{issues: render_many(issues, IssueView, "issue.json")})
+
+  defp maybe_render_issues(json, _), do: json
 
   defp maybe_render_notes(json, %Customer{notes: notes}) when is_list(notes),
     do: Map.merge(json, %{notes: render_many(notes, NoteView, "note.json")})

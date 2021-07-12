@@ -1,4 +1,4 @@
-import React, {Fragment} from 'react';
+import React from 'react';
 import {Box, Flex} from 'theme-ui';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
@@ -24,6 +24,8 @@ import DeleteOutlined from '@ant-design/icons/DeleteOutlined';
 // TODO: create date utility methods so we don't have to do this everywhere
 dayjs.extend(utc);
 
+const UNASSIGNED = 'unassigned';
+
 const ConversationHeader = ({
   conversation,
   users,
@@ -36,7 +38,7 @@ const ConversationHeader = ({
 }: {
   conversation: Conversation | null;
   users: Array<User>;
-  onAssignUser: (conversationId: string, userId: string) => void;
+  onAssignUser: (conversationId: string, userId: string | null) => void;
   onMarkPriority: (conversationId: string) => void;
   onRemovePriority: (conversationId: string) => void;
   onCloseConversation: (conversationId: string) => void;
@@ -47,6 +49,7 @@ const ConversationHeader = ({
     // No point in showing the header if no conversation exists
     return null;
   }
+
   const {
     id: conversationId,
     assignee_id,
@@ -57,6 +60,12 @@ const ConversationHeader = ({
   const {name, email} = customer;
   const assigneeId = assignee_id ? String(assignee_id) : undefined;
   const hasBothNameAndEmail = !!(name && email);
+
+  const handleAssignUser = (userId: string) => {
+    const assigneeId = userId === UNASSIGNED ? null : String(userId);
+
+    onAssignUser(conversationId, assigneeId);
+  };
 
   return (
     <header
@@ -97,10 +106,12 @@ const ConversationHeader = ({
               style={{minWidth: 240}}
               placeholder="No assignee"
               value={assigneeId ? String(assigneeId) : undefined}
-              onSelect={(userId) =>
-                onAssignUser(conversationId, String(userId))
-              }
+              onSelect={handleAssignUser}
             >
+              <Select.Option key={UNASSIGNED} value={UNASSIGNED}>
+                No assignee
+              </Select.Option>
+
               {users.map((user: User) => {
                 const value = String(user.id);
 
@@ -134,29 +145,14 @@ const ConversationHeader = ({
           </Box>
 
           {status === 'closed' ? (
-            <Fragment>
-              <Box mx={1}>
-                <Tooltip title="Reopen conversation" placement="bottomRight">
-                  <Button
-                    icon={<UploadOutlined />}
-                    onClick={() => onReopenConversation(conversationId)}
-                  />
-                </Tooltip>
-              </Box>
-              <Box mx={1}>
-                <Popconfirm
-                  title="Are you sure you want to delete this conversation?"
-                  okText="Yes"
-                  cancelText="No"
-                  placement="leftBottom"
-                  onConfirm={() => onDeleteConversation(conversationId)}
-                >
-                  <Tooltip title="Delete conversation" placement="bottomRight">
-                    <Button icon={<DeleteOutlined />} />
-                  </Tooltip>
-                </Popconfirm>
-              </Box>
-            </Fragment>
+            <Box mx={1}>
+              <Tooltip title="Reopen conversation" placement="bottomRight">
+                <Button
+                  icon={<UploadOutlined />}
+                  onClick={() => onReopenConversation(conversationId)}
+                />
+              </Tooltip>
+            </Box>
           ) : (
             <Box mx={1}>
               <Tooltip title="Close conversation" placement="bottomRight">
@@ -167,6 +163,20 @@ const ConversationHeader = ({
               </Tooltip>
             </Box>
           )}
+
+          <Box mx={1}>
+            <Popconfirm
+              title="Are you sure you want to delete this conversation?"
+              okText="Yes"
+              cancelText="No"
+              placement="leftBottom"
+              onConfirm={() => onDeleteConversation(conversationId)}
+            >
+              <Tooltip title="Delete conversation" placement="bottomRight">
+                <Button icon={<DeleteOutlined />} />
+              </Tooltip>
+            </Popconfirm>
+          </Box>
         </Flex>
       </Flex>
     </header>

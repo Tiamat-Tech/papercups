@@ -1,7 +1,7 @@
 import React from 'react';
 import {Link, RouteComponentProps} from 'react-router-dom';
 import {Box, Flex} from 'theme-ui';
-import {Button} from '../common';
+import {Button, Title} from '../common';
 import {ArrowLeftOutlined} from '../icons';
 import * as API from '../../api';
 import {BrowserSession, Customer} from '../../types';
@@ -83,7 +83,7 @@ class CustomerDetailsPage extends React.Component<Props, State> {
             justifyContent: 'center',
             alignItems: 'center',
             height: '100%',
-            bg: 'rgb(245, 245, 245)',
+            bg: 'rgb(250, 250, 250)',
           }}
         >
           <Spinner size={40} />
@@ -91,13 +91,15 @@ class CustomerDetailsPage extends React.Component<Props, State> {
       );
     }
 
+    const {title} = customer;
+
     return (
       <Flex
         p={4}
         sx={{
           flexDirection: 'column',
           flex: 1,
-          bg: 'rgb(245, 245, 245)',
+          bg: 'rgb(250, 250, 250)',
         }}
       >
         <Flex mb={4}>
@@ -107,17 +109,19 @@ class CustomerDetailsPage extends React.Component<Props, State> {
         </Flex>
 
         <Box>
-          <Flex sx={{justifyContent: 'flex-end'}} mb={3}>
-            <Button type="primary" onClick={this.handleOpenEditModal}>
-              Edit
-            </Button>
-            <EditCustomerDetailsModal
-              customer={customer}
-              isVisible={isEditModalVisible}
-              onClose={this.handleCloseEditModal}
-              onUpdate={this.handleCustomerUpdated}
-            />
+          <Flex sx={{justifyContent: 'space-between'}}>
+            <Box mx={3}>
+              <Title level={3}>{title}</Title>
+            </Box>
+            <Button onClick={this.handleOpenEditModal}>Edit</Button>
           </Flex>
+
+          <EditCustomerDetailsModal
+            customer={customer}
+            isVisible={isEditModalVisible}
+            onClose={this.handleCloseEditModal}
+            onUpdate={this.handleCustomerUpdated}
+          />
 
           <Flex>
             <Box mr={3}>

@@ -7,10 +7,10 @@ defmodule ChatApiWeb.ConversationController do
 
   action_fallback(ChatApiWeb.FallbackController)
 
-  plug(:authorize when action in [:show, :update, :delete])
+  plug(:authorize when action in [:show, :update, :delete, :archive])
 
   defp authorize(conn, _) do
-    id = conn.path_params["id"]
+    id = conn.path_params["id"] || conn.params["conversation_id"]
 
     with %{account_id: account_id} <- conn.assigns.current_user,
          conversation = %{account_id: ^account_id} <- Conversations.get_conversation!(id) do
@@ -252,6 +252,15 @@ defmodule ChatApiWeb.ConversationController do
     end
   end
 
+  @spec archive(Plug.Conn.t(), map()) :: Plug.Conn.t()
+  def archive(conn, _params) do
+    conversation = conn.assigns.current_conversation
+
+    with {:ok, %Conversation{} = conversation} <- Conversations.archive_conversation(conversation) do
+      render(conn, "update.json", conversation: conversation)
+    end
+  end
+
   @spec add_tag(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def add_tag(conn, %{"conversation_id" => id, "tag_id" => tag_id}) do
     conversation = Conversations.get_conversation!(id)
@@ -273,7 +282,20 @@ defmodule ChatApiWeb.ConversationController do
   @spec maybe_create_message(Plug.Conn.t(), Conversation.t(), map()) :: any()
   defp maybe_create_message(
          conn,
-         conversation,
+         %Conversation{source: "email"} = conversation,
+         %{"message" => %{"body" => body} = _message_params}
+       ) do
+    with %{id: user_id} <- conn.assigns.current_user do
+      case ChatApi.Google.InitializeGmailThread.send(body, conversation, user_id) do
+        %Messages.Message{} -> :ok
+        {:error, message} -> {:error, :unprocessable_entity, message}
+      end
+    end
+  end
+
+  defp maybe_create_message(
+         conn,
+         %Conversation{id: conversation_id},
          %{"message" => %{"body" => _body} = message_params}
        ) do
     with %{id: user_id, account_id: account_id} <- conn.assigns.current_user,
@@ -282,7 +304,7 @@ defmodule ChatApiWeb.ConversationController do
            |> Map.merge(%{
              "user_id" => user_id,
              "account_id" => account_id,
-             "conversation_id" => conversation.id
+             "conversation_id" => conversation_id
            })
            |> Messages.create_message() do
       Messages.get_message!(msg.id)
@@ -303,9 +325,17 @@ defmodule ChatApiWeb.ConversationController do
       params,
       [],
       fn
-        {"limit", value}, acc -> acc ++ [limit: value]
-        {"after", value}, acc -> acc ++ [after: value]
-        _, acc -> acc
+        {"limit", value}, acc ->
+          case Integer.parse(value) do
+            {limit, ""} -> acc ++ [limit: limit]
+            _ -> acc
+          end
+
+        {"after", value}, acc ->
+          acc ++ [after: value]
+
+        _, acc ->
+          acc
       end
     )
   end

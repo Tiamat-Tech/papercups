@@ -2,7 +2,14 @@ import React from 'react';
 import {RouteComponentProps} from 'react-router-dom';
 import {Box, Flex} from 'theme-ui';
 import qs from 'query-string';
-import {notification, Button, Paragraph, Text, Title} from '../common';
+import {
+  notification,
+  Button,
+  Container,
+  Paragraph,
+  Text,
+  Title,
+} from '../common';
 import {PlusOutlined} from '../icons';
 import Spinner from '../Spinner';
 import * as API from '../../api';
@@ -58,6 +65,7 @@ class IntegrationsOverview extends React.Component<Props, State> {
         this.fetchGmailIntegration(),
         this.fetchGoogleSheetsIntegration(),
         this.fetchTwilioIntegration(),
+        this.fetchGithubIntegration(),
         this.fetchMicrosoftTeamsIntegration(),
         this.fetchWhatsAppIntegration(),
         // TODO: deprecate
@@ -91,6 +99,7 @@ class IntegrationsOverview extends React.Component<Props, State> {
         this.fetchGmailIntegration(),
         this.fetchGoogleSheetsIntegration(),
         this.fetchTwilioIntegration(),
+        this.fetchGithubIntegration(),
         this.fetchMicrosoftTeamsIntegration(),
         this.fetchWhatsAppIntegration(),
         // TODO: deprecate
@@ -112,6 +121,10 @@ class IntegrationsOverview extends React.Component<Props, State> {
 
   fetchSlackIntegration = async (): Promise<IntegrationType> => {
     const auth = await API.fetchSlackAuthorization('reply');
+    const description =
+      auth && auth.channel && auth.team_name
+        ? `Connected to ${auth.channel} in ${auth.team_name}.`
+        : 'Reply to messages from your customers directly through Slack.';
 
     return {
       key: 'slack',
@@ -120,13 +133,16 @@ class IntegrationsOverview extends React.Component<Props, State> {
       created_at: auth ? auth.created_at : null,
       authorization_id: auth ? auth.id : null,
       icon: '/slack.svg',
-      description:
-        'Reply to messages from your customers directly through Slack.',
+      description,
     };
   };
 
   fetchMattermostIntegration = async (): Promise<IntegrationType> => {
     const auth = await API.fetchMattermostAuthorization();
+    const description =
+      auth && auth.channel && auth.team_name
+        ? `Connected to ${auth.channel} in ${auth.team_name}.`
+        : 'Reply to messages from your customers directly from Mattermost.';
 
     return {
       key: 'mattermost',
@@ -135,13 +151,16 @@ class IntegrationsOverview extends React.Component<Props, State> {
       created_at: auth ? auth.created_at : null,
       authorization_id: auth ? auth.id : null,
       icon: '/mattermost.svg',
-      description:
-        'Reply to messages from your customers directly from Mattermost.',
+      description,
     };
   };
 
   fetchSlackSupportIntegration = async (): Promise<IntegrationType> => {
     const auth = await API.fetchSlackAuthorization('support');
+    const description =
+      auth && auth.channel && auth.team_name
+        ? `Connected to ${auth.channel} in ${auth.team_name}.`
+        : 'Sync messages from your Slack channels with Papercups.';
 
     return {
       key: 'slack:sync',
@@ -150,25 +169,29 @@ class IntegrationsOverview extends React.Component<Props, State> {
       created_at: auth ? auth.created_at : null,
       authorization_id: auth ? auth.id : null,
       icon: '/slack.svg',
-      description: 'Sync messages from your Slack channels with Papercups.',
+      description,
     };
   };
 
   fetchGmailIntegration = async (): Promise<IntegrationType> => {
-    const auth = await API.fetchGoogleAuthorization('gmail');
+    const auth = await API.fetchGoogleAuthorization({
+      client: 'gmail',
+      type: 'support',
+    });
 
     return {
       key: 'gmail',
-      integration: 'Gmail (alpha)',
+      integration: 'Gmail (beta)',
       status: auth ? 'connected' : 'not_connected',
       created_at: auth ? auth.created_at : null,
       authorization_id: auth ? auth.id : null,
       icon: '/gmail.svg',
+      description: 'Sync messages from your Gmail inbox with Papercups.',
     };
   };
 
   fetchGoogleSheetsIntegration = async (): Promise<IntegrationType> => {
-    const auth = await API.fetchGoogleAuthorization('sheets');
+    const auth = await API.fetchGoogleAuthorization({client: 'sheets'});
 
     return {
       key: 'sheets',
@@ -177,6 +200,7 @@ class IntegrationsOverview extends React.Component<Props, State> {
       created_at: auth ? auth.created_at : null,
       authorization_id: auth ? auth.id : null,
       icon: '/sheets.svg',
+      description: 'Sync customer data to a Google spreadsheet.',
     };
   };
 
@@ -201,6 +225,21 @@ class IntegrationsOverview extends React.Component<Props, State> {
       created_at: auth ? auth.created_at : null,
       authorization_id: auth ? auth.id : null,
       icon: '/twilio.svg',
+      description: 'Receive and reply to messages over SMS.',
+    };
+  };
+
+  fetchGithubIntegration = async (): Promise<IntegrationType> => {
+    const auth = await API.fetchGithubAuthorization();
+
+    return {
+      key: 'github',
+      integration: 'GitHub',
+      status: auth ? 'connected' : 'not_connected',
+      created_at: auth ? auth.created_at : null,
+      authorization_id: auth ? auth.id : null,
+      icon: '/github.svg',
+      description: 'Sync and track feature requests and bugs with GitHub.',
     };
   };
 
@@ -216,6 +255,19 @@ class IntegrationsOverview extends React.Component<Props, State> {
   };
 
   handleIntegrationType = async (type: string, query: string = '') => {
+    switch (type) {
+      case 'slack':
+        return this.authorizeSlackIntegration(query);
+      case 'google':
+        return this.authorizeGoogleIntegration(query);
+      case 'github':
+        return this.authorizeGithubIntegration(query);
+      default:
+        return null;
+    }
+  };
+
+  authorizeSlackIntegration = async (query = '') => {
     const q = qs.parse(query);
     const code = q.code ? String(q.code) : null;
     const state = q.state ? String(q.state) : null;
@@ -224,44 +276,80 @@ class IntegrationsOverview extends React.Component<Props, State> {
       return null;
     }
 
-    switch (type) {
-      case 'slack':
-        const authorizationType = state || 'reply';
+    const authorizationType = state || 'reply';
 
-        return API.authorizeSlackIntegration({
-          code,
-          type: authorizationType,
-          redirect_url: getSlackRedirectUrl(),
-        })
-          .then((result) =>
-            logger.debug('Successfully authorized Slack:', result)
-          )
-          .catch((err) => {
-            logger.error('Failed to authorize Slack:', err);
+    return API.authorizeSlackIntegration({
+      code,
+      type: authorizationType,
+      redirect_url: getSlackRedirectUrl(),
+    })
+      .then((result) => logger.debug('Successfully authorized Slack:', result))
+      .catch((err) => {
+        logger.error('Failed to authorize Slack:', err);
 
-            const description =
-              err?.response?.body?.error?.message ||
-              err?.message ||
-              String(err);
+        const description =
+          err?.response?.body?.error?.message || err?.message || String(err);
 
-            notification.error({
-              message: 'Failed to authorize Slack',
-              duration: null,
-              description,
-            });
-          });
+        notification.error({
+          message: 'Failed to authorize Slack',
+          duration: null,
+          description,
+        });
+      });
+  };
 
-      case 'google':
-        const scope = q.scope ? String(q.scope) : null;
+  authorizeGoogleIntegration = async (query = '') => {
+    const q = qs.parse(query);
+    const code = q.code ? String(q.code) : null;
 
-        return API.authorizeGoogleIntegration(code, scope)
-          .then((result) =>
-            logger.debug('Successfully authorized Google:', result)
-          )
-          .catch((err) => logger.error('Failed to authorize Google:', err));
-      default:
-        return null;
+    if (!code) {
+      return null;
     }
+
+    const scope = q.scope ? String(q.scope) : null;
+    const state = q.state ? String(q.state) : null;
+
+    return API.authorizeGoogleIntegration({code, scope, state})
+      .then((result) => logger.debug('Successfully authorized Google:', result))
+      .catch((err) => {
+        logger.error('Failed to authorize Google:', err);
+
+        const description =
+          err?.response?.body?.error?.message || err?.message || String(err);
+
+        notification.error({
+          message: 'Failed to authorize Google',
+          duration: null,
+          description,
+        });
+      });
+  };
+
+  authorizeGithubIntegration = async (query = '') => {
+    const q = qs.parse(query);
+    const {code, installation_id, setup_action} = q;
+
+    if (!code && !installation_id) {
+      return null;
+    }
+
+    // `code` is used for OAuth flow, while `installation_id` is used for app install flow
+    const params = code ? {code} : {installation_id, setup_action};
+
+    return API.authorizeGithubIntegration(params)
+      .then((result) => logger.debug('Successfully authorized Github:', result))
+      .catch((err) => {
+        logger.error('Failed to authorize Github:', err);
+
+        const description =
+          err?.response?.body?.error?.message || err?.message || String(err);
+
+        notification.error({
+          message: 'Failed to authorize Github',
+          duration: null,
+          description,
+        });
+      });
   };
 
   handleDisconnectSlack = async (authorizationId: string) => {
@@ -384,7 +472,7 @@ class IntegrationsOverview extends React.Component<Props, State> {
     }
 
     return (
-      <Box p={4} sx={{maxWidth: 1080}}>
+      <Container>
         <Box mb={5}>
           <Title level={4}>Integrations</Title>
 
@@ -471,7 +559,7 @@ class IntegrationsOverview extends React.Component<Props, State> {
           onSuccess={this.handleApiKeyModalSuccess}
           onCancel={this.handleApiKeyModalCancel}
         />
-      </Box>
+      </Container>
     );
   }
 }
